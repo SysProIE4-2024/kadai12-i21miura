@@ -68,6 +68,13 @@ void findRedirect(char *args[]) {               // リダイレクトの指示�
 }
 
 void redirect(int fd, char *path, int flag) {   // リダイレクト処理をする
+  close(fd);
+  int nfd = open(path,flag,0644);
+
+  if (nfd < 0){
+    perror(path);
+    exit(1);
+  }
   //
   // externalCom 関数のどこかから呼び出される
   //
@@ -86,6 +93,12 @@ void externalCom(char *args[]) {                // 外部コマンドを実行�
     exit(1);                                    //     非常事態，親を終了
   }
   if (pid==0) {                                 //   子プロセスなら
+    if(ifile!=NULL){
+      redirect(0,ifile,O_RDONLY);
+    }
+    if(ofile!=NULL){
+      redirect(1,ofile,O_WRONLY|O_CREAT|O_TRUNC);
+    }
     execvp(args[0], args);                      //     コマンドを実行
     perror(args[0]);
     exit(1);
@@ -129,4 +142,42 @@ int main() {
   }
   return 0;
 }
+/*
+実行結果
+% make (コンパイル正常)
+cc -D_GNU_SOURCE -Wall -std=c99 -o myshell myshell.c
 
+Command: ls
+Makefile	README.pdf	myshell
+README.md	a.txt		myshell.c
+Command: ls > a.txt   (lsの出力をa.txtに入れる)
+Command: cat a.txt    (lsの出力と同じになっている)
+Makefile
+README.md
+README.pdf
+a.txt
+myshell
+myshell.c
+
+Command: echo 123456 > a.txt  (123456の文字列をa.txtに上書きする)
+Command: cat a.txt  (123456が入っている)
+123456
+
+Command: ls > a.txt
+Command: cat < a.txt  (ファイルから入力)
+Makefile
+README.md
+README.pdf
+a.txt
+myshell
+myshell.c
+
+Command:  a.txt > ls  (エラー)
+a.txt: No such file or directory
+
+Command: chmod 000 a.txt  (権限を無くす)
+Command: ls > a.txt 
+a.txt: Permission denied  (書き込みエラー)
+Command: cat < a.txt
+a.txt: Permission denied  (読み込みエラー)
+*/
